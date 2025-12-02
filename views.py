@@ -334,7 +334,8 @@ class TaskTableView:
                         font=('Segoe UI', 10, 'bold'))
 
         style.map('Treeview',
-                  background=[('selected', '#e3f2fd')])
+                  background=[('selected', '#e3f2fd')],
+                  foreground=[('selected', '#000000')])
 
     def _on_button_press(self, event):
         """Обработка нажатия кнопки мыши"""

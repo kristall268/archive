@@ -1,5 +1,5 @@
 """
-Контроллер приложения с поддержкой фильтрации
+Контроллер приложения с поддержкой фильтрации.
 """
 from typing import Optional
 from datetime import datetime

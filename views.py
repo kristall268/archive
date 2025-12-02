@@ -1,53 +1,40 @@
 """
-Представления приложения - паттерн Observer/MVC
+Представления приложения с фильтрацией и поиском
 """
 import customtkinter as ctk
 from tkinter import ttk
 from typing import Callable, Optional, List
 from models import Task
+from tkcalendar import DateEntry
+from datetime import datetime
 
 
 class MenuBarView:
-    """Меню приложения"""
-
+    """Меню приложения - интегрировано в заголовок таблицы"""
+    
     def __init__(self, parent, on_save: Callable, on_load: Callable, 
                  on_export: Callable, on_exit: Callable):
         self.parent = parent
-        
-        # Создаем фрейм для меню
-        menu_frame = ctk.CTkFrame(parent, fg_color="#f0f0f0", height=40)
-        menu_frame.pack(fill="x", padx=0, pady=0)
-        menu_frame.pack_propagate(False)
-        
-        # Контейнер для кнопок меню
-        buttons_container = ctk.CTkFrame(menu_frame, fg_color="transparent")
-        buttons_container.pack(side="left", padx=10, pady=5)
-        
-        # Кнопка "Файл"
-        self._create_menu_button(
-            buttons_container,
-            "📁 Файл",
-            lambda: self._show_file_menu(on_save, on_load, on_export, on_exit)
-        )
-
-    def _create_menu_button(self, parent, text: str, command: Callable):
-        """Создать кнопку меню"""
-        btn = ctk.CTkButton(
+        self.on_save = on_save
+        self.on_load = on_load
+        self.on_export = on_export
+        self.on_exit = on_exit
+        # Меню теперь создается в TableContainerView
+    
+    def create_file_button(self, parent) -> ctk.CTkButton:
+        """Создать кнопку 'Файл' в стиле кнопки 'Добавить'"""
+        file_btn = ctk.CTkButton(
             parent,
-            text=text,
-            command=command,
-            width=80,
-            height=30,
-            fg_color="transparent",
-            hover_color="#e0e0e0",
-            text_color="#333333",
-            font=ctk.CTkFont(size=12)
+            text="📁 Файл",
+            font=ctk.CTkFont(size=13),
+            height=35,
+            width=100,
+            corner_radius=8,
+            command=self._show_file_menu
         )
-        btn.pack(side="left", padx=2)
-        return btn
-
-    def _show_file_menu(self, on_save: Callable, on_load: Callable,
-                        on_export: Callable, on_exit: Callable):
+        return file_btn
+    
+    def _show_file_menu(self):
         """Показать меню файла"""
         menu = ctk.CTkToplevel(self.parent)
         menu.overrideredirect(True)
@@ -57,35 +44,36 @@ class MenuBarView:
             menu,
             fg_color="white",
             border_width=1,
-            border_color="#d0d0d0"
+            border_color="#d0d0d0",
+            corner_radius=8
         )
-        menu_frame.pack(fill="both", expand=True)
+        menu_frame.pack(fill="both", expand=True, padx=2, pady=2)
         
         # Пункты меню
-        self._create_menu_item(menu_frame, "💾 Сохранить", on_save, menu)
-        self._create_menu_item(menu_frame, "📂 Открыть...", on_load, menu)
+        self._create_menu_item(menu_frame, "💾 Сохранить", self.on_save, menu)
+        self._create_menu_item(menu_frame, "📂 Открыть...", self.on_load, menu)
         
-        # Разделитель
         separator = ctk.CTkFrame(menu_frame, height=1, fg_color="#e0e0e0")
         separator.pack(fill="x", padx=5, pady=2)
         
-        self._create_menu_item(menu_frame, "📊 Экспорт в Excel...", on_export, menu)
+        self._create_menu_item(menu_frame, "📊 Экспорт в Excel...", self.on_export, menu)
         
-        # Разделитель
         separator2 = ctk.CTkFrame(menu_frame, height=1, fg_color="#e0e0e0")
         separator2.pack(fill="x", padx=5, pady=2)
         
-        self._create_menu_item(menu_frame, "❌ Выход", on_exit, menu)
+        self._create_menu_item(menu_frame, "❌ Выход", self.on_exit, menu)
         
         # Позиционирование меню
-        x = self.parent.winfo_rootx() + 10
-        y = self.parent.winfo_rooty() + 50
-        menu.geometry(f"+{x}+{y}")
+        try:
+            x = self.parent.winfo_rootx() + 50
+            y = self.parent.winfo_rooty() + 150
+            menu.geometry(f"+{x}+{y}")
+        except:
+            pass
         
-        # Закрытие при потере фокуса
         menu.bind('<FocusOut>', lambda e: menu.destroy())
         menu.focus_set()
-
+    
     def _create_menu_item(self, parent, text: str, command: Callable, menu):
         """Создать пункт меню"""
         def execute_and_close():
@@ -105,6 +93,233 @@ class MenuBarView:
         )
         btn.pack(fill="x", padx=2, pady=2)
         return btn
+
+
+class FilterPanelView:
+    """Панель фильтрации и поиска"""
+    
+    def __init__(self, parent, on_filter_change: Callable):
+        self.on_filter_change = on_filter_change
+        self.filter_frame = ctk.CTkFrame(
+            parent,
+            fg_color="#f8f9fa",
+            corner_radius=10
+        )
+        self.filter_frame.pack(fill="x", padx=20, pady=(0, 10))
+        
+        self._create_widgets()
+    
+    def _create_widgets(self):
+        """Создать виджеты фильтрации"""
+        # Заголовок панели
+        header_frame = ctk.CTkFrame(self.filter_frame, fg_color="transparent")
+        header_frame.pack(fill="x", padx=15, pady=(15, 10))
+        
+        title_label = ctk.CTkLabel(
+            header_frame,
+            text="🔍 Фильтры и поиск",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color="#495057"
+        )
+        title_label.pack(side="left")
+        
+        # Кнопка сброса фильтров
+        self.reset_btn = ctk.CTkButton(
+            header_frame,
+            text="Сбросить",
+            width=90,
+            height=28,
+            corner_radius=6,
+            fg_color="#6c757d",
+            hover_color="#5a6268",
+            font=ctk.CTkFont(size=11),
+            command=self._reset_filters
+        )
+        self.reset_btn.pack(side="right")
+        
+        # Контейнер для фильтров
+        content_frame = ctk.CTkFrame(self.filter_frame, fg_color="transparent")
+        content_frame.pack(fill="x", padx=15, pady=(0, 15))
+        
+        # Первая строка: Поиск
+        search_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
+        search_frame.pack(fill="x", pady=(0, 10))
+        
+        search_label = ctk.CTkLabel(
+            search_frame,
+            text="Поиск по ID / Объекту:",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            width=150,
+            anchor="w"
+        )
+        search_label.pack(side="left", padx=(0, 10))
+        
+        self.search_entry = ctk.CTkEntry(
+            search_frame,
+            placeholder_text="Введите ID или название объекта...",
+            height=35,
+            font=ctk.CTkFont(size=12)
+        )
+        self.search_entry.pack(side="left", fill="x", expand=True)
+        self.search_entry.bind('<KeyRelease>', lambda e: self.on_filter_change())
+        
+        # Вторая строка: Тип зависимости и Количество зависимостей
+        row2_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
+        row2_frame.pack(fill="x", pady=(0, 10))
+        
+        # Тип зависимости
+        type_container = ctk.CTkFrame(row2_frame, fg_color="transparent")
+        type_container.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        
+        type_label = ctk.CTkLabel(
+            type_container,
+            text="Тип зависимости:",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            width=150,
+            anchor="w"
+        )
+        type_label.pack(side="left", padx=(0, 10))
+        
+        type_options = ["Все", "FS - Finish-Start", "SS - Start-Start",
+                       "FF - Finish-Finish", "SF - Start-Finish", "Без типа"]
+        self.type_combo = ctk.CTkComboBox(
+            type_container,
+            values=type_options,
+            height=35,
+            font=ctk.CTkFont(size=12),
+            command=lambda _: self.on_filter_change()
+        )
+        self.type_combo.set("Все")
+        self.type_combo.pack(side="left", fill="x", expand=True)
+        
+        # Количество зависимостей
+        deps_container = ctk.CTkFrame(row2_frame, fg_color="transparent")
+        deps_container.pack(side="left", fill="x", expand=True)
+        
+        deps_label = ctk.CTkLabel(
+            deps_container,
+            text="Зависимости:",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            width=120,
+            anchor="w"
+        )
+        deps_label.pack(side="left", padx=(0, 10))
+        
+        deps_options = ["Все", "Без зависимостей", "С зависимостями", "1 зависимость", 
+                       "2+ зависимости"]
+        self.deps_combo = ctk.CTkComboBox(
+            deps_container,
+            values=deps_options,
+            height=35,
+            font=ctk.CTkFont(size=12),
+            command=lambda _: self.on_filter_change()
+        )
+        self.deps_combo.set("Все")
+        self.deps_combo.pack(side="left", fill="x", expand=True)
+        
+        # Третья строка: Даты
+        date_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
+        date_frame.pack(fill="x")
+        
+        # Дата начала
+        start_date_container = ctk.CTkFrame(date_frame, fg_color="transparent")
+        start_date_container.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        
+        start_label = ctk.CTkLabel(
+            start_date_container,
+            text="Дата начала (от):",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            width=150,
+            anchor="w"
+        )
+        start_label.pack(side="left", padx=(0, 10))
+        
+        start_date_frame = ctk.CTkFrame(
+            start_date_container,
+            fg_color="white",
+            height=35,
+            corner_radius=6
+        )
+        start_date_frame.pack(side="left", fill="x", expand=True)
+        start_date_frame.pack_propagate(False)
+        
+        self.start_date_entry = DateEntry(
+            start_date_frame,
+            width=20,
+            background='#3B8ED0',
+            foreground='white',
+            borderwidth=0,
+            date_pattern='dd.mm.yyyy',
+            font=('Segoe UI', 10)
+        )
+        self.start_date_entry.pack(fill="both", expand=True, padx=5, pady=3)
+        self.start_date_entry.bind("<<DateEntrySelected>>", lambda e: self.on_filter_change())
+        
+        # Дата окончания
+        end_date_container = ctk.CTkFrame(date_frame, fg_color="transparent")
+        end_date_container.pack(side="left", fill="x", expand=True)
+        
+        end_label = ctk.CTkLabel(
+            end_date_container,
+            text="Дата окончания (до):",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            width=150,
+            anchor="w"
+        )
+        end_label.pack(side="left", padx=(0, 10))
+        
+        end_date_frame = ctk.CTkFrame(
+            end_date_container,
+            fg_color="white",
+            height=35,
+            corner_radius=6
+        )
+        end_date_frame.pack(side="left", fill="x", expand=True)
+        end_date_frame.pack_propagate(False)
+        
+        self.end_date_entry = DateEntry(
+            end_date_frame,
+            width=20,
+            background='#3B8ED0',
+            foreground='white',
+            borderwidth=0,
+            date_pattern='dd.mm.yyyy',
+            font=('Segoe UI', 10)
+        )
+        self.end_date_entry.pack(fill="both", expand=True, padx=5, pady=3)
+        self.end_date_entry.bind("<<DateEntrySelected>>", lambda e: self.on_filter_change())
+        
+        # Чекбокс для включения фильтра по датам
+        self.date_filter_enabled = ctk.BooleanVar(value=False)
+        self.date_checkbox = ctk.CTkCheckBox(
+            date_frame,
+            text="Применить",
+            variable=self.date_filter_enabled,
+            font=ctk.CTkFont(size=11),
+            command=self.on_filter_change
+        )
+        self.date_checkbox.pack(side="left", padx=(10, 0))
+    
+    def _reset_filters(self):
+        """Сбросить все фильтры"""
+        self.search_entry.delete(0, 'end')
+        self.type_combo.set("Все")
+        self.deps_combo.set("Все")
+        self.date_filter_enabled.set(False)
+        self.start_date_entry.set_date(datetime.now())
+        self.end_date_entry.set_date(datetime.now())
+        self.on_filter_change()
+    
+    def get_filters(self) -> dict:
+        """Получить текущие значения фильтров"""
+        return {
+            'search': self.search_entry.get().strip().lower(),
+            'type': self.type_combo.get(),
+            'dependencies': self.deps_combo.get(),
+            'date_enabled': self.date_filter_enabled.get(),
+            'start_date': self.start_date_entry.get_date().strftime("%d.%m.%Y") if self.date_filter_enabled.get() else None,
+            'end_date': self.end_date_entry.get_date().strftime("%d.%m.%Y") if self.date_filter_enabled.get() else None
+        }
 
 
 class NotificationView:
@@ -130,7 +345,6 @@ class NotificationView:
         )
         label.pack(padx=20, pady=10)
 
-        # Автоматическое скрытие
         self.parent.after(duration, notification.destroy)
 
 
@@ -151,7 +365,6 @@ class ContextMenuView:
         self.current_menu = None
         self.menu_closing = False
 
-        # Привязка правой кнопки мыши
         self.tree.bind('<Button-3>', self.show)
 
     def close_current_menu(self):
@@ -167,17 +380,14 @@ class ContextMenuView:
 
     def show(self, event):
         """Показать контекстное меню"""
-        # Закрыть предыдущее меню
         self.close_current_menu()
 
-        # Выбираем строку под курсором
         row_id = self.tree.identify_row(event.y)
         if not row_id:
             return
 
         self.tree.selection_set(row_id)
 
-        # Создаем новое меню
         menu = ctk.CTkToplevel(self.parent)
         menu.overrideredirect(True)
         menu.configure(fg_color="white")
@@ -187,11 +397,11 @@ class ContextMenuView:
             menu,
             fg_color="white",
             border_width=1,
-            border_color="#d0d0d0"
+            border_color="#d0d0d0",
+            corner_radius=8
         )
-        menu_frame.pack(fill="both", expand=True)
+        menu_frame.pack(fill="both", expand=True, padx=2, pady=2)
 
-        # Кнопки меню
         self._create_menu_button(
             menu_frame,
             "📋 Копировать (Ctrl+C)",
@@ -211,7 +421,6 @@ class ContextMenuView:
             state="normal" if self.has_clipboard() else "disabled"
         )
 
-        # Разделитель
         separator = ctk.CTkFrame(menu_frame, height=1, fg_color="#e0e0e0")
         separator.pack(fill="x", padx=5, pady=2)
 
@@ -223,15 +432,11 @@ class ContextMenuView:
             hover_color="#ffebee"
         )
 
-        # Позиционирование меню
         menu.geometry(f"+{event.x_root}+{event.y_root}")
 
-        # Закрытие меню при потере фокуса
         menu.bind('<FocusOut>', lambda e: self.close_current_menu())
         
-        # Закрытие при клике вне меню
         def handle_outside_click(e):
-            # Проверяем, что клик был не по меню
             widget = e.widget
             try:
                 if str(widget).startswith(str(menu)):
@@ -240,7 +445,6 @@ class ContextMenuView:
                 pass
             self.close_current_menu()
         
-        # Привязываем с небольшой задержкой
         self.parent.after(50, lambda: self.parent.bind('<Button-1>', handle_outside_click, add='+'))
 
         menu.focus_set()
@@ -269,7 +473,7 @@ class ContextMenuView:
 
 
 class TaskTableView:
-    """Представление таблицы задач"""
+    """Представление таблицы задач с улучшенным выделением"""
 
     def __init__(self, parent_frame, on_dependency_click: Callable,
                  on_edit: Callable):
@@ -277,18 +481,14 @@ class TaskTableView:
         self.on_edit = on_edit
         self.processing_click = False
 
-        # Настройка стилей Treeview
         self._configure_styles()
 
-        # Фрейм для таблицы с прокруткой
         tree_frame = ctk.CTkFrame(parent_frame, fg_color="white")
         tree_frame.pack(fill="both", expand=True, padx=20, pady=(0, 20))
 
-        # Scrollbar
         scrollbar = ttk.Scrollbar(tree_frame)
         scrollbar.pack(side="right", fill="y")
 
-        # Treeview
         columns = ("ID", "Объект", "Дата начала", "Дата окончания",
                    "Длительность", "Зависит от", "Тип зависимости")
 
@@ -302,7 +502,6 @@ class TaskTableView:
 
         scrollbar.config(command=self.tree.yview)
 
-        # Настройка колонок
         column_widths = [120, 150, 130, 140, 100, 200, 150]
         for col, width in zip(columns, column_widths):
             self.tree.heading(col, text=col)
@@ -310,12 +509,11 @@ class TaskTableView:
 
         self.tree.pack(fill="both", expand=True)
 
-        # Привязка событий - ВАЖНО: перехватываем ДО стандартной обработки
         self.tree.bind('<Button-1>', self._on_button_press, add='+')
         self.tree.bind('<Double-Button-1>', self._on_double_click, add='+')
 
     def _configure_styles(self):
-        """Настройка стилей"""
+        """Настройка стилей с улучшенным выделением"""
         style = ttk.Style()
         style.theme_use("clam")
 
@@ -333,9 +531,10 @@ class TaskTableView:
                         borderwidth=0,
                         font=('Segoe UI', 10, 'bold'))
 
+        # Улучшенное выделение
         style.map('Treeview',
-                  background=[('selected', '#e3f2fd')],
-                  foreground=[('selected', '#000000')])
+                  background=[('selected', '#B8E6F0')],
+                  foreground=[('selected', '#0D7C99')])
 
     def _on_button_press(self, event):
         """Обработка нажатия кнопки мыши"""
@@ -345,22 +544,15 @@ class TaskTableView:
         self.processing_click = True
         
         try:
-            # Определяем, куда кликнули
             region = self.tree.identify_region(event.x, event.y)
             row_id = self.tree.identify_row(event.y)
             column = self.tree.identify_column(event.x)
             
-            # Если клик по колонке "Зависит от" (#6)
             if region == "cell" and row_id and column == "#6":
-                # Выбираем строку
                 self.tree.selection_set(row_id)
                 self.tree.focus(row_id)
-                # Открываем диалог зависимостей
                 self.tree.after(10, lambda: self.on_dependency_click(event, row_id))
-                return "break"  # Прерываем стандартную обработку
-            
-            # Для остальных случаев позволяем стандартную обработку
-            # (выбор строки, снятие выделения при клике на пустое место)
+                return "break"
             
         finally:
             self.tree.after(10, lambda: setattr(self, 'processing_click', False))
@@ -381,18 +573,15 @@ class TaskTableView:
         if not row_id:
             return "break"
         
-        # Если двойной клик по колонке "Зависит от", ничего не делаем
         if column == "#6":
             return "break"
 
-        # Для остальных колонок - открываем редактирование
         self.tree.selection_set(row_id)
         self.tree.after(10, lambda: self.on_edit(event))
         return "break"
 
     def populate(self, tasks: List[Task]):
         """Заполнить таблицу данными"""
-        # Сохраняем текущее выделение
         current_selection = self.tree.selection()
         selected_index = None
         if current_selection:
@@ -401,11 +590,9 @@ class TaskTableView:
             except:
                 pass
 
-        # Очистка существующих данных
         for item in self.tree.get_children():
             self.tree.delete(item)
 
-        # Добавление задач
         for task in tasks:
             self.tree.insert("", "end", values=(
                 task.id,
@@ -417,7 +604,6 @@ class TaskTableView:
                 task.type
             ))
 
-        # Восстанавливаем выделение, если возможно
         if selected_index is not None:
             try:
                 items = self.tree.get_children()
@@ -505,9 +691,9 @@ class TabsView:
 
 
 class TableContainerView:
-    """Контейнер таблицы с заголовком"""
+    """Контейнер таблицы с заголовком и кнопками"""
 
-    def __init__(self, parent, on_add_task: Callable):
+    def __init__(self, parent, on_add_task: Callable, menu_bar_view: MenuBarView):
         self.container = ctk.CTkFrame(
             parent,
             fg_color="white",
@@ -515,7 +701,7 @@ class TableContainerView:
         )
         self.container.pack(fill="both", expand=True, padx=30, pady=20)
 
-        # Заголовок таблицы и кнопка
+        # Заголовок таблицы и кнопки
         table_header = ctk.CTkFrame(self.container, fg_color="transparent")
         table_header.pack(fill="x", padx=20, pady=(20, 10))
 
@@ -526,12 +712,22 @@ class TableContainerView:
         )
         table_title.pack(side="left")
 
+        # Контейнер для кнопок справа
+        buttons_container = ctk.CTkFrame(table_header, fg_color="transparent")
+        buttons_container.pack(side="right")
+
+        # Кнопка "Файл"
+        file_button = menu_bar_view.create_file_button(buttons_container)
+        file_button.pack(side="left", padx=(0, 10))
+
+        # Кнопка "Добавить"
         add_button = ctk.CTkButton(
-            table_header,
+            buttons_container,
             text="+ Добавить задачу",
             font=ctk.CTkFont(size=13),
             height=35,
+            width=150,
             corner_radius=8,
             command=on_add_task
         )
-        add_button.pack(side="right")
+        add_button.pack(side="left")

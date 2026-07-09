@@ -1,4 +1,3 @@
-# /etc/nixos/home.nix
 { config, pkgs, ... }:
 
 {
@@ -6,12 +5,12 @@
   home.homeDirectory = "/home/krist";
   home.stateVersion = "26.05";
 
-  # ---------- Dev: языки и тулчейны ----------
+  # ---------- Dev: языки, тулчейны и пользовательский софт ----------
   home.packages = with pkgs; [
     # --- C / C++ ---
     gcc
     clang
-    clang-tools       # clangd, clang-format, clang-tidy
+    clang-tools
     cmake
     gnumake
     gdb
@@ -22,40 +21,33 @@
     # --- Ассемблер ---
     nasm
     yasm
-    binutils          # objdump, readelf, as, ld и пр.
+    binutils
 
     # --- Java / Kotlin ---
-    jdk21             # современный LTS JDK
+    jdk21
     kotlin
     gradle
     maven
 
     # --- Go ---
     go
-    gopls             # go language server
+    gopls
     golangci-lint
 
     # --- Python ---
     python3
     python3Packages.pip
     python3Packages.virtualenv
-    pyright           # python language server
+    pyright
 
     # --- Редакторы / IDE ---
-    vim
-    vscode
-    neovim
-    jetbrains.idea  # IntelliJ IDEA Community (Java/Kotlin)
+    jetbrains.idea
 
     # --- Системные dev-утилиты ---
-    git
     gh
-    direnv
     docker-compose
     strace
     ltrace
-    htop
-    btop
 
     # --- CLI-инструменты общего назначения ---
     ripgrep
@@ -65,39 +57,55 @@
     tree
     bat
     eza
-    unzip
-    zip
-    wget
-    curl
     tmux
 
     # --- Повседневное: офис, медиа, архивы ---
     libreoffice
-    vlc
     gimp
-    flameshot          # скриншоты
+    flameshot
     qbittorrent
-    p7zip
-    file-roller        # GUI-архиватор для GNOME
-    #xfce.thunar
-    #xfce.thunar-volman
-    #xfce.thunar-archive-plugin
-    #xfce.thunar-media-tags-plugin
-    #xfce.tumbler
+    vlc
 
-    # --- Файловый менеджер / утилиты GNOME-окружения ---
-    nautilus
-    nautilus-open-any-terminal
-    sushi
-    gnome-tweaks
-    gnome-extension-manager
+    # =================================================================
+    # === Пакеты GNOME ================================================
+    # =================================================================
+    # nautilus
+    # nautilus-open-any-terminal
+    # sushi
+    # gnome-tweaks
+    # gnome-extension-manager
+    # file-roller
+    # =================================================================
+    # === конец пакетов GNOME ==========================================
+    # =================================================================
+
+    # =================================================================
+    # === Пакеты KDE Plasma ============================================
+    # =================================================================
+    kdePackages.dolphin                # файловый менеджер (аналог nautilus)
+    kdePackages.dolphin-plugins
+    kdePackages.ark                    # архивы (аналог file-roller)
+    kdePackages.kate                   # текстовый редактор
+    kdePackages.konsole                # терминал
+    kdePackages.spectacle              # скриншоты (аналог flameshot, но можно оставить оба)
+    kdePackages.kcalc
+    kdePackages.kcolorchooser
+    kdePackages.filelight              # визуализация занятого места на диске
+    kdePackages.partitionmanager
+    kdePackages.plasma-systemmonitor
+    kdePackages.kwalletmanager         # менеджер паролей/секретов KDE
+    kdePackages.qtstyleplugin-kvantum  # движок тем для Qt-приложений
+    # =================================================================
+    # === конец пакетов KDE Plasma ======================================
+    # =================================================================
   ];
 
+  # Настройка Git
   programs.git = {
     enable = true;
-    userName = "kristall268";
-    userEmail = "kristall268@outlook.com";
-    extraConfig = {
+    settings = {
+      user.name = "kristall268";
+      user.email = "kristall268@outlook.com";
       init.defaultBranch = "main";
       pull.rebase = false;
     };
@@ -121,15 +129,43 @@
 
   programs.vscode = {
     enable = true;
-    extensions = with pkgs.vscode-extensions; [
-      llvm-vs-code-extensions.vscode-clangd
-      ms-vscode.cpptools
-      golang.go
-      ms-python.python
-    ];
   };
+
+  # =================================================================
+  # === Пакеты GNOME: dconf-настройки ================================
+  # =================================================================
+  # dconf.settings = {
+  #   "org/gnome/desktop/interface" = {
+  #     color-scheme = "prefer-dark";
+  #   };
+  # };
+  # =================================================================
+  # === конец GNOME dconf-настроек ====================================
+  # =================================================================
+
+  # =================================================================
+  # === KDE Plasma: декларативная настройка через plasma-manager =====
+  # =================================================================
+  # Требует добавить вход plasma-manager в flake.nix и подключить
+  # его как home-manager.sharedModules, иначе programs.plasma не появится.
+  #
+  # programs.plasma = {
+  #   enable = true;
+  #   workspace.theme = "breeze-dark";
+  #   panels = [
+  #     {
+  #       location = "bottom";
+  #       widgets = [ "org.kde.plasma.kickoff" "org.kde.plasma.taskmanager" "org.kde.plasma.systemtray" "org.kde.plasma.digitalclock" ];
+  #     }
+  #   ];
+  # };
+  # =================================================================
+  # === конец KDE Plasma настроек ======================================
+  # =================================================================
 
   home.sessionVariables = {
     EDITOR = "nvim";
+    NIXOS_OZONE_WAYLAND = "1";
+    MOZ_ENABLE_WAYLAND = "1";
   };
 }

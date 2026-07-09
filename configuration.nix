@@ -35,12 +35,37 @@
      keyMap = "us";
   };
 
-  # Enable the X11 windowing system and GNOME.
+  # ===================================================================
+  # === GNOME: блок отвечает исключительно за окружение GNOME =======
+  # ===================================================================
+  # Enable the X11 windowing system.
   services.xserver.enable = true;
-  services.displayManager.gdm.enable = true;
-  services.desktopManager.gnome.enable = true;
-  services.gvfs.enable = true;
-  services.udisks2.enable = true;
+  services.displayManager.gdm.enable = true;          # <- display manager под GNOME
+  services.desktopManager.gnome.enable = true;         # <- сам сеанс GNOME
+  services.gvfs.enable = true;                         # <- виртуальная ФС (нужна Nautilus)
+  services.udisks2.enable = true;                      # <- монтирование дисков (нужна Nautilus/GNOME Disks)
+  # ===================================================================
+  # === конец блока GNOME =============================================
+  # ===================================================================
+
+  # ===================================================================
+  # === KDE PLASMA: включить вместо/вместе с GNOME при переходе ======
+  # ===================================================================
+  # Если решишь полностью перейти на Plasma — закомментируй/удали блок
+  # GNOME выше и раскомментируй блок ниже. Если хочешь держать оба DE
+  # одновременно (выбор сессии на экране логина) — просто раскомментируй,
+  # ничего не трогая в блоке GNOME, только смени displayManager на sddm
+  # (gdm тоже умеет показывать Plasma-сессию, но sddm — "родной" для KDE).
+
+  # services.displayManager.sddm.enable = true;        # <- display manager под Plasma (либо оставь gdm)
+  # services.desktopManager.plasma6.enable = true;     # <- сам сеанс KDE Plasma 6
+
+  # Полезные системные пакеты именно для Plasma (kwallet и т.п. обычно
+  # тянутся автоматически вместе с plasma6, но kwallet-pam стоит проверить):
+  # security.pam.services.sddm.enableKwallet = true;
+  # ===================================================================
+  # === конец блока KDE Plasma =========================================
+  # ===================================================================
 
   # Graphic settings
   hardware.graphics = {
@@ -112,13 +137,13 @@
     supergfxctl
 
     # Сетевая диагностика
-    dnsutils      # утилиты dig, nslookup
+    dnsutils
     traceroute
 
     # Диагностика железа
-    lm_sensors    # команда sensors для температур
-    pciutils      # команда lspci
-    usbutils      # команда lsusb
+    lm_sensors
+    pciutils
+    usbutils
 
     # Базовые системные архиваторы (чтобы root мог распаковать что угодно)
     unzip
